@@ -73,6 +73,12 @@
   <!-- Nuget  -->
   <!-- =================================================================== -->
   <PropertyGroup>
+    <TargetFrameworks>net472;netstandard2.1;net6.0</TargetFrameworks>
+    <RootNamespace>Terminal.Gui</RootNamespace>
+    <AssemblyName>Terminal.Gui</AssemblyName>
+    <DocumentationFile>bin\Release\Terminal.Gui.xml</DocumentationFile>
+    <GenerateDocumentationFile Condition=" '$(Configuration)' == 'Release' ">true</GenerateDocumentationFile>
+    <!--<GeneratePackageOnBuild Condition=" '$(Configuration)' == 'Release' ">true</GeneratePackageOnBuild>-->
     <PackageId>Terminal.Gui</PackageId>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/gui-cs/Terminal.Gui/</PackageProjectUrl>

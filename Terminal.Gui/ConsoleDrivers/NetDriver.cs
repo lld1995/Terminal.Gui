@@ -175,34 +175,37 @@ namespace Terminal.Gui {
 			ConsoleKey key = 0;
 			ConsoleModifiers mod = 0;
 			ConsoleKeyInfo newConsoleKeyInfo = default;
-
 			while (true) {
-				ConsoleKeyInfo consoleKeyInfo = Console.ReadKey (true);
-				if ((consoleKeyInfo.KeyChar == (char)Key.Esc && !isEscSeq)
-					|| (consoleKeyInfo.KeyChar != (char)Key.Esc && isEscSeq)) {
-					if (cki == null && consoleKeyInfo.KeyChar != (char)Key.Esc && isEscSeq) {
-						cki = EscSeqUtils.ResizeArray (new ConsoleKeyInfo ((char)Key.Esc, 0,
-							false, false, false), cki);
-					}
-					isEscSeq = true;
-					newConsoleKeyInfo = consoleKeyInfo;
-					cki = EscSeqUtils.ResizeArray (consoleKeyInfo, cki);
-					if (!Console.KeyAvailable) {
+				try {
+					ConsoleKeyInfo consoleKeyInfo = Console.ReadKey (true);
+					if ((consoleKeyInfo.KeyChar == (char)Key.Esc && !isEscSeq)
+						|| (consoleKeyInfo.KeyChar != (char)Key.Esc && isEscSeq)) {
+						if (cki == null && consoleKeyInfo.KeyChar != (char)Key.Esc && isEscSeq) {
+							cki = EscSeqUtils.ResizeArray (new ConsoleKeyInfo ((char)Key.Esc, 0,
+								false, false, false), cki);
+						}
+						isEscSeq = true;
+						newConsoleKeyInfo = consoleKeyInfo;
+						cki = EscSeqUtils.ResizeArray (consoleKeyInfo, cki);
+						if (!Console.KeyAvailable) {
+							DecodeEscSeq (ref newConsoleKeyInfo, ref key, cki, ref mod);
+							cki = null;
+							isEscSeq = false;
+							break;
+						}
+					} else if (consoleKeyInfo.KeyChar == (char)Key.Esc && isEscSeq) {
 						DecodeEscSeq (ref newConsoleKeyInfo, ref key, cki, ref mod);
 						cki = null;
-						isEscSeq = false;
+						if (!Console.KeyAvailable) {
+							isEscSeq = false;
+						}
+						break;
+					} else {
+						GetConsoleInputType (consoleKeyInfo);
 						break;
 					}
-				} else if (consoleKeyInfo.KeyChar == (char)Key.Esc && isEscSeq) {
-					DecodeEscSeq (ref newConsoleKeyInfo, ref key, cki, ref mod);
-					cki = null;
-					if (!Console.KeyAvailable) {
-						isEscSeq = false;
-					}
-					break;
-				} else {
-					GetConsoleInputType (consoleKeyInfo);
-					break;
+				} catch (Exception) {
+
 				}
 			}
 		}
@@ -619,67 +622,71 @@ namespace Terminal.Gui {
 
 		public override void AddRune (Rune rune)
 		{
-			if (contents.Length != Rows * Cols * 3) {
-				return;
-			}
-			rune = MakePrintable (rune);
-			var runeWidth = Rune.ColumnWidth (rune);
-			var validClip = IsValidContent (ccol, crow, Clip);
-
-			if (validClip) {
-				if (runeWidth == 0 && ccol > 0) {
-					var r = contents [crow, ccol - 1, 0];
-					var s = new string (new char [] { (char)r, (char)rune });
-					string sn;
-					if (!s.IsNormalized ()) {
-						sn = s.Normalize ();
-					} else {
-						sn = s;
-					}
-					var c = sn [0];
-					contents [crow, ccol - 1, 0] = c;
-					contents [crow, ccol - 1, 1] = CurrentAttribute;
-					contents [crow, ccol - 1, 2] = 1;
-
-				} else {
-					if (runeWidth < 2 && ccol > 0
-						&& Rune.ColumnWidth ((char)contents [crow, ccol - 1, 0]) > 1) {
-
-						contents [crow, ccol - 1, 0] = (int)(uint)' ';
-
-					} else if (runeWidth < 2 && ccol <= Clip.Right - 1
-						&& Rune.ColumnWidth ((char)contents [crow, ccol, 0]) > 1) {
-
-						contents [crow, ccol + 1, 0] = (int)(uint)' ';
-						contents [crow, ccol + 1, 2] = 1;
-
-					}
-					if (runeWidth > 1 && ccol == Clip.Right - 1) {
-						contents [crow, ccol, 0] = (int)(uint)' ';
-					} else {
-						contents [crow, ccol, 0] = (int)(uint)rune;
-					}
-					contents [crow, ccol, 1] = CurrentAttribute;
-					contents [crow, ccol, 2] = 1;
-
+			try {
+				if (contents.Length != Rows * Cols * 3) {
+					return;
 				}
-				dirtyLine [crow] = true;
-			}
+				rune = MakePrintable (rune);
+				var runeWidth = Rune.ColumnWidth (rune);
+				var validClip = IsValidContent (ccol, crow, Clip);
 
-			if (runeWidth < 0 || runeWidth > 0) {
-				ccol++;
-			}
+				if (validClip) {
+					if (runeWidth == 0 && ccol > 0) {
+						var r = contents [crow, ccol - 1, 0];
+						var s = new string (new char [] { (char)r, (char)rune });
+						string sn;
+						if (!s.IsNormalized ()) {
+							sn = s.Normalize ();
+						} else {
+							sn = s;
+						}
+						var c = sn [0];
+						contents [crow, ccol - 1, 0] = c;
+						contents [crow, ccol - 1, 1] = CurrentAttribute;
+						contents [crow, ccol - 1, 2] = 1;
 
-			if (runeWidth > 1) {
-				if (validClip && ccol < Clip.Right) {
-					contents [crow, ccol, 1] = CurrentAttribute;
-					contents [crow, ccol, 2] = 0;
+					} else {
+						if (runeWidth < 2 && ccol > 0
+							&& Rune.ColumnWidth ((char)contents [crow, ccol - 1, 0]) > 1) {
+
+							contents [crow, ccol - 1, 0] = (int)(uint)' ';
+
+						} else if (runeWidth < 2 && ccol <= Clip.Right - 1
+							&& Rune.ColumnWidth ((char)contents [crow, ccol, 0]) > 1) {
+
+							contents [crow, ccol + 1, 0] = (int)(uint)' ';
+							contents [crow, ccol + 1, 2] = 1;
+
+						}
+						if (runeWidth > 1 && ccol == Clip.Right - 1) {
+							contents [crow, ccol, 0] = (int)(uint)' ';
+						} else {
+							contents [crow, ccol, 0] = (int)(uint)rune;
+						}
+						contents [crow, ccol, 1] = CurrentAttribute;
+						contents [crow, ccol, 2] = 1;
+
+					}
+					dirtyLine [crow] = true;
 				}
-				ccol++;
-			}
 
-			if (sync) {
-				UpdateScreen ();
+				if (runeWidth < 0 || runeWidth > 0) {
+					ccol++;
+				}
+
+				if (runeWidth > 1) {
+					if (validClip && ccol < Clip.Right) {
+						contents [crow, ccol, 1] = CurrentAttribute;
+						contents [crow, ccol, 2] = 0;
+					}
+					ccol++;
+				}
+
+				if (sync) {
+					UpdateScreen ();
+				}
+			} catch (Exception) {
+
 			}
 		}
 
